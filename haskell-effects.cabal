@@ -1,0 +1,34 @@
+cabal-version:      2.2
+name:               haskell-effects
+version:            0.0.0
+maintainer:         exclusiveandgate@gmail.com
+build-type:         Simple
+
+library
+    default-language: Haskell2010
+
+    default-extensions:
+        BangPatterns
+        GADTs
+        GeneralizedNewtypeDeriving
+        LambdaCase
+        NoStarIsType
+        TupleSections
+        TypeFamilies
+        TypeOperators
+
+    other-extensions:
+        MagicHash
+        RankNTypes
+        UnboxedTuples
+
+    hs-source-dirs: src
+
+    exposed-modules:
+        Haskell.Effect
+        Examples.Coroutine
+
+    ghc-options: -Wall -Wcompat
+
+    build-depends:
+        base                    >= 4.18     && < 5,
