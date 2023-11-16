@@ -90,15 +90,15 @@ par (Eff ma) (Eff mb) = Eff $ \(Target tag0 cps) -> do
             (Done a, Done b) -> pure (a, b)
             
             (Yielded x ka, Done b) -> do
-                _ <- control0 tag0 (cps $ Yield $ This x)
+                () <- control0 tag0 (cps $ Yield $ This x)
                 handle tag0 cps tag1 tag2 (ka $ pure ()) (pure $ Done b)
             
             (Done a, Yielded y kb) -> do
-                _ <- control0 tag0 (cps $ Yield $ That y)
+                () <- control0 tag0 (cps $ Yield $ That y)
                 handle tag0 cps tag1 tag2 (pure $ Done a) (kb $ pure ())
             
             (Yielded x ka, Yielded y kb) -> do
-                _ <- control0 tag0 (cps $ Yield $ These x y)
+                () <- control0 tag0 (cps $ Yield $ These x y)
                 handle tag0 cps tag1 tag2 (ka $ pure ()) (kb $ pure ())
 
 
