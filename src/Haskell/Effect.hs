@@ -33,8 +33,8 @@ module Haskell.Effect
 -- Instead of building a new monad from the ground up for each distinct set
 -- of effects, algebraic effects systems make use of a canonical monad,
 -- in this case the continuation monad, which already knows how to do all
--- of the monad-y things. By relying on a canonical monad, arbitrary effects
--- can be defined quickly and easily by:
+-- of the monad-y things. Relying on a canonical monad means new effects can
+-- be defined quickly and easily by:
 -- 
 --   1. Writing an abstract definition of the desired effects.
 -- 
@@ -48,7 +48,7 @@ module Haskell.Effect
 -- 
 -- The interpretations of effects are CPS functions that define what the
 -- effect does to the continuation of the computation.
--- A simple state effect might simply read and write in-place, before
+-- A basic state effect might simply read and write in-place, before
 -- immediately resuming. Alternatively, an effect like yielding could return
 -- the continuation, so that the caller can manually resume it later on.
     Target (..), Eff (..), runEff, send
@@ -118,6 +118,6 @@ instance Monad (Eff eff) where
 
 
 -- | Raise an abstract effect in the algebraic effect monad.
--- Uses the effects target to provide the canonical interpretation.
+-- Uses the effect's target to provide the canonical interpretation.
 send :: eff a -> Eff eff a
 send e = Eff $ \(Target tag cps) -> control0 tag (cps e)
