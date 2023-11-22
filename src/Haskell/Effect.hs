@@ -18,10 +18,25 @@ module Haskell.Effect
 --    * 'control0' halts the execution of a computation, and captures
 --      whatever's left up to the enclosing 'delimit' as a continuation.
 -- 
--- At runtime, 'delimit' creates a new stack frame containing the tag before
--- jumping into the sub-computation's code. To capture a continuation,
+-- At runtime, 'delimit' creates a new stack frame containing the tag,
+-- before jumping into the sub-computation's code. To capture a continuation,
 -- 'control0' searches its call stack for the delimiting frame. Once the
 -- relevant part of the stack has been identified, it is copied to the heap.
+-- 
+-- After capturing the continuation, 'control0' pops all the copied frames
+-- off of the stack. This is similar to what would happen if the
+-- computation returned normally. Finally, to close the loop, 'control0'
+-- pushes the heap pointer to the continuation onto the stack, and jumps to
+-- the function in its second argument. The function argument lets the user
+-- decide what to do with the captured continuation.
+-- 
+-- One common user function runs some extra code, then resumes right away.
+-- This kind of function can be very useful when the user wants their code
+-- to have access to the enclosing scope, without explicitly bringing things
+-- from that scope into the computation.
+-- 
+-- Another common function packages the continuation in a user-defined data
+-- type. This is a way to pause a computation and resume it on-demand later.
     ContEv, newContinuation,
     delimit,
     CPS, control0,
