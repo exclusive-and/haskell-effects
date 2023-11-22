@@ -18,8 +18,10 @@ module Haskell.Effect
 --    * 'control0' halts the execution of a computation, and captures
 --      whatever's left up to the enclosing 'delimit' as a continuation.
 -- 
--- 'control0' takes a CPS function as an argument: it will either
--- run the captured continuation, or package it so that it can be run later.
+-- At runtime, 'delimit' creates a new stack frame containing the tag before
+-- jumping into the sub-computation's code. To capture a continuation,
+-- 'control0' searches its call stack for the delimiting frame. Once the
+-- relevant part of the stack has been identified, it is copied to the heap.
     ContEv, newContinuation,
     delimit,
     CPS, control0,
