@@ -26,8 +26,6 @@ import GHC.Exts (PromptTag#, newPromptTag#, prompt#, control0#)
 import GHC.IO (IO (..))
 
 
--- * Delimited Continuations
-
 -- | Evidence type for identifying continuations.
 data ContEv a = ContTag (PromptTag# a)
 
