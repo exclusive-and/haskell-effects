@@ -22,8 +22,8 @@ data ContId a = ContId (PromptTag# a)
 
 -- |
 newContinuation :: IO (ContId a)
-newContinuation = IO $ \s0 ->
-    case newPromptTag# s0 of (# s1, tag #) -> (# s1, ContId tag #)
+newContinuation = IO $ \s0 -> case newPromptTag# s0 of
+    (# s1, tag #) -> (# s1, ContId tag #)
 
 -- |
 delimit :: ContId a -> IO a -> IO a

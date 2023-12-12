@@ -1,7 +1,5 @@
 
-{-# LANGUAGE MagicHash      #-}
-{-# LANGUAGE RankNTypes     #-}
-{-# LANGUAGE UnboxedTuples  #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Haskell.Effect
     (
@@ -50,7 +48,7 @@ runEff (Eff m) = m
 -- | The target of an effect provides the effect's interpretation to the
 -- underlying delimited continuation primitives.
 data Target eff r where
-    Target  :: ContEv r
+    Target  :: ContId r
             -- ^ Which continuation is this effect a part of?
             -> (forall b. eff b -> CPS r b)
             -- ^ The canonical interpretation of the effect.
