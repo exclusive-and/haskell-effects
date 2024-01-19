@@ -4,31 +4,37 @@
 --   Description    :   CPU (Categorical Processing Unit) Interrupt
 --                      Operations
 --
---   Copyright      :   (c) 2023, Simon Lovell Bart
+--   Copyright      :   (c) 2023-2024, Simon Lovell Bart
 --   License        :   BSD3 (see the file LICENSE)
 --   Maintainer     :   Simon Lovell Bart
 --                      <exclusiveandgate@gmail.com>
 --
--- In constructive logic, Kleisli categories are a logical encoding of
--- the operational rules of computers. This module encodes the interrupt
--- operations that some computers have.
---
--- An interrupt is an operation that halts the computer so that it can
--- execute some other code. The operation also generates an interrupt
--- context, which contains information about what the computer was doing
--- before it was interrupted so that it can be resumed.
---
--- The interrupt concept presented here uses a technique called delimited
--- continuations:
---
---    - 'delimit' runs a program that can be halted by an interrupt.
---      
---    - 'control0' supplies the interrupting code, creates the interrupt
---      context, and triggers the interrupt operation.
---
--- When a program is interrupted, 'delimit' runs the code supplied by
--- 'control0'. The return value of the interrupting code becomes the final
--- result of the computation.
+-- In constructive logic, computers are characterized by Kleisli
+-- categories. This module concerns categories with values that represent
+-- incomplete computations, which can only return a result after
+-- something else is done to complete them. Two relevant examples where
+-- these types of values can occur are:
+-- 
+--    - Continuation-passing style functions, which as the name suggests,
+--      are completed by passing a continuation representing the remainder
+--      of the computation.
+--    
+--    - Interrupts, which halt a computer and override whatever the
+--      computer was running with their own code. These create incomplete
+--      computation values in the form of /interrupt contexts/, that can
+--      be used to resume the halted program once the interrupting code is
+--      finished.
+-- 
+-- This module mixes both of these types, giving Haskell's version of
+-- interrupt operations, using a technique called /delimited continuations/.
+-- The gist is that interrupts are defined as CPS functions which, when
+-- triggered, receive a continuation that encodes the interrupt context
+-- of the halted program. That way, the interrupt code can decide whether
+-- to resume the program (by calling the continuation).
+-- Alternatively, it can return the context's value, so that subsequent
+-- code can decide what to do with it (as in threaded process scheduling).
+-- 
+-- 
 
 {-# LANGUAGE MagicHash, UnboxedTuples #-}
 
