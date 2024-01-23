@@ -40,32 +40,29 @@
 
 module Haskell.Interrupt where
 
+import Control.Monad.Primitive
 import GHC.Exts (PromptTag#, newPromptTag#, prompt#, control0#)
-import GHC.IO (IO (..))
 
 
 -- | 
 data ControlTag a = ControlTag (PromptTag# a)
 
 -- | 
-newControlTag :: IO (ControlTag a)
-newControlTag = IO $ \s0 -> case newPromptTag# s0 of
+newControlTag :: (PrimMonad m, m ~ IO) => m (ControlTag a)
+newControlTag = primitive $ \s0 -> case newPromptTag# s0 of
     (# s1, tag #) -> (# s1, ControlTag tag #)
 
 
 -- | 
-delimit :: ControlTag a -> IO a -> IO a
-delimit (ControlTag tag) (IO m) = IO (prompt# tag m)
+delimit :: (PrimMonad m, m ~ IO) => ControlTag a -> m a -> m a
+delimit (ControlTag tag) m = primitive (prompt# tag $ internal m)
 
 
 -- | The type of functions in continuation-passing style (CPS).
-type CPS r a = (IO a -> IO r) -> IO r
+type CPS r m a = (m a -> m r) -> m r
 
--- | A deviant kind of function that can terminate the computation of any
--- code containing it with an artificial return value. It also creates a
--- special closure value which, when it is evaluated, causes the machine to
--- resume the terminated computation.
-control0 :: ControlTag r -> CPS r a -> IO a
-control0 (ControlTag tag) run = IO (control0# tag continue)
+-- | 
+control0 :: (PrimMonad m, m ~ IO) => ControlTag r -> CPS r m a -> m a
+control0 (ControlTag tag) run = primitive (control0# tag continue)
     where
-    continue k = case run (\(IO a) -> IO (k a)) of IO r -> r
+    continue k = internal $ run (\a -> primitive (k $ internal a))
