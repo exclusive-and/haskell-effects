@@ -1,8 +1,7 @@
 
 -- | Module         :   Haskell.Interrupt
 --
---   Description    :   CPU (Categorical Processing Unit) Interrupt
---                      Operations
+--   Description    :   Categorical Semantics of Interrupt Operations
 --
 --   Copyright      :   (c) 2023-2024, Simon Lovell Bart
 --   License        :   BSD3 (see the file LICENSE)
@@ -33,8 +32,6 @@
 -- to resume the program (by calling the continuation).
 -- Alternatively, it can return the context's value, so that subsequent
 -- code can decide what to do with it (as in threaded process scheduling).
--- 
--- 
 
 {-# LANGUAGE MagicHash, UnboxedTuples #-}
 
