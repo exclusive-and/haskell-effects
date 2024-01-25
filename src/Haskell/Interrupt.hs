@@ -1,37 +1,36 @@
 
 -- | Module         :   Haskell.Interrupt
---
 --   Description    :   Categorical Semantics of Interrupt Operations
 --
 --   Copyright      :   (c) 2023-2024, Simon Lovell Bart
 --   License        :   BSD3 (see the file LICENSE)
---   Maintainer     :   Simon Lovell Bart
---                      <exclusiveandgate@gmail.com>
+--   Maintainer     :   Simon Lovell Bart <exclusiveandgate@gmail.com>
 --
 -- In constructive logic, computers are characterized by Kleisli
--- categories. This module concerns categories with values that represent
--- incomplete computations, which can only return a result after
--- something else is done to complete them. Two relevant examples where
--- these types of values can occur are:
+-- categories. These categories have the higher order '>>=' combinator to
+-- compose small operations together into a computation.
+-- This module answers the question of what happens if the composition
+-- process can't finish: it creates an incomplete computation, which
+-- can only return a result after something else is done to complete it.
 -- 
---    - Continuation-passing style functions, which as the name suggests,
---      are completed by passing a continuation representing the remainder
---      of the computation.
+-- Two relevant examples where these types of values can occur are:
+-- 
+--    - Continuation-passing style functions which, rather than returning
+--      when finished, instead call another function that continues the
+--      computation. The continuing function is called a /continuation/, and
+--      it gets passed to the original function as an argument.
 --    
---    - Interrupts, which halt a computer and override whatever the
---      computer was running with their own code. These create incomplete
---      computation values in the form of /interrupt contexts/, that can
---      be used to resume the halted program once the interrupting code is
---      finished.
+--    - Interrupts, which halt the computer, and override whatever it
+--      was running with their own code. These create incomplete computation
+--      values in the form of /interrupt contexts/, that can be used to
+--      resume the halted program once the interrupting code is finished.
 -- 
 -- This module mixes both of these types, giving Haskell's version of
 -- interrupt operations, using a technique called /delimited continuations/.
--- The gist is that interrupts are defined as CPS functions which, when
--- triggered, receive a continuation that encodes the interrupt context
--- of the halted program. That way, the interrupt code can decide whether
--- to resume the program (by calling the continuation).
--- Alternatively, it can return the context's value, so that subsequent
--- code can decide what to do with it (as in threaded process scheduling).
+-- The gist is that an interrupt is defined as a CPS function which, when
+-- triggered, receives a continuation that encodes the interrupt context
+-- of the halted program. Calling the continuation will resume the original
+-- program.
 
 {-# LANGUAGE MagicHash, UnboxedTuples #-}
 
@@ -39,6 +38,14 @@ module Haskell.Interrupt where
 
 import Control.Monad.Primitive
 import GHC.Exts (PromptTag#, newPromptTag#, prompt#, control0#)
+
+
+-- Note [The m ~ IO constraint]
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-- The code here uses the weird convention of m ~ IO rather than IO
+-- itself because, although the GHC primitives rely on IO, they may still
+-- be pure. A distinction like this may be helpful in code that is
+-- morally pure, in case the compiler isn't smart enough to know for sure.
 
 
 -- | 
