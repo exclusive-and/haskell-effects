@@ -1,10 +1,10 @@
 
-{-# LANGUAGE RankNTypes #-}
-
-module Haskell.Effect
-    (
-{- * Algebraic Effects -}
--- | #algebraicEffects#
+-- | Module         :   Haskell.Effect
+--   Description    :   Monadic Algebraic Effects in Haskell
+--   
+--   Copyright      :   (c) 2023-2024, Simon Lovell Bart
+--   License        :   BSD3 (see the file LICENSE)
+--   Maintainer     :   Simon Lovell Bart <exclusiveandgate@gmail.com>
 -- 
 -- Algebraic effects provide a friendly way of quickly building monadic
 -- computations with very abstract side-effects.
@@ -30,13 +30,25 @@ module Haskell.Effect
 -- A basic state effect might simply read and write in-place, before
 -- immediately resuming. Alternatively, an effect like yielding could return
 -- the continuation, so that the caller can manually resume it later on.
-    Target (..), Eff (..), runEff, send
-    ) where
 
-import Haskell.Continuation
+{-# LANGUAGE RankNTypes #-}
+
+module Haskell.Effect where
+
+import Haskell.Interrupt
+
+-- TODO: Update all these docs
 
 
--- * Algebraic Effects
+-- | The target of an effect provides the effect's interpretation to the
+-- underlying delimited continuation primitives.
+data Target eff r where
+    Target  :: ControlTag r
+            -- ^ Which continuation is this effect a part of?
+            -> (forall b. eff b -> CPS r IO b)
+            -- ^ The canonical interpretation of the effect.
+            -> Target eff r
+
 
 -- | The canonical monad backing the algebraic effects system.
 newtype Eff eff a = Eff (forall r. Target eff r -> IO a)
@@ -44,15 +56,6 @@ newtype Eff eff a = Eff (forall r. Target eff r -> IO a)
 -- | Run an algebraic effect with its target.
 runEff :: Eff eff r -> Target eff r -> IO r
 runEff (Eff m) = m
-
--- | The target of an effect provides the effect's interpretation to the
--- underlying delimited continuation primitives.
-data Target eff r where
-    Target  :: ContId r
-            -- ^ Which continuation is this effect a part of?
-            -> (forall b. eff b -> CPS r b)
-            -- ^ The canonical interpretation of the effect.
-            -> Target eff r
 
 
 instance Functor (Eff eff) where
