@@ -1,6 +1,9 @@
 cabal-version:      2.2
+
 name:               haskell-effects
 version:            0.0.0
+
+copyright:          Copyright (C) 2023-2024, Simon Lovell Bart
 maintainer:         exclusiveandgate@gmail.com
 build-type:         Simple
 
@@ -25,8 +28,8 @@ library
     hs-source-dirs: src
 
     exposed-modules:
-        Haskell.Interrupt
-        Haskell.Effect
+        Control.Monad.Interrupt
+        Control.Monad.Effect
         -- Examples.Coroutine
 
     ghc-options: -Wall -Wcompat
