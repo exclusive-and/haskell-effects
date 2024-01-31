@@ -9,29 +9,17 @@
    Stability    :   experimental
    Portability  :   non-portable (GHC Extensions)
 
-   = Monads, Continuations, And Interrupts
-
-   Monads construct computations out of sequences of operations.
-   This module defines some meta-operations that can make changes to the
-   computation from within, while it is running.
-   
-   The process happens in two parts, each with its own operation:
+   Monadic operations for approaching control within a computation as a
+   first-class concept. There are two parts to this idea:
    
    [Running]
-       'delimit' runs a given computation that can contain the
-       sequence-breaking meta-operation.
-       If the meta-operation doesn't occur anywhere in the given
-       computation, then this does nothing.
+       'delimit' runs a given computation with first-class control
+       structures.
    
    [Interrupting]
-       'control0' can only be run by 'delimit'.
-       Once called, it stops the computation and passes the unfinished part
-       of the sequence to a given function. The return value of the given
-       function will in turn be returned by 'delimit' as the result of the
-       whole computation.
-   
-   This technique is called /delimited continuations/.
-   It has many analogues, including CPU interrupts and exception handlers.
+       'control0' stops the computation in-place, and it uses the
+       given function to come up with an appropriate result for 'delimit'
+       to return.
 -}
 
 {-# LANGUAGE MagicHash, UnboxedTuples #-}
