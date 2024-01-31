@@ -9,12 +9,29 @@
    Stability    :   experimental
    Portability  :   non-portable (GHC Extensions)
 
-   Monadic interrupts, analogous to CPU interrupts.
+   = Monads, Continuations, And Interrupts
 
-   The module uses /delimited continuations/, originating from
-   "Control.Monad.Trans.Cont".
-
-   It is implemented using GHC's delimited continuation primitives.
+   Monads construct computations out of sequences of operations.
+   This module defines some meta-operations that can make changes to the
+   computation from within, while it is running.
+   
+   The process happens in two parts, each with its own operation:
+   
+   [Running]
+       'delimit' runs a given computation that can contain the
+       sequence-breaking meta-operation.
+       If the meta-operation doesn't occur anywhere in the given
+       computation, then this does nothing.
+   
+   [Interrupting]
+       'control0' can only be run by 'delimit'.
+       Once called, it stops the computation and passes the unfinished part
+       of the sequence to a given function. The return value of the given
+       function will in turn be returned by 'delimit' as the result of the
+       whole computation.
+   
+   This technique is called /delimited continuations/.
+   It has many analogues, including CPU interrupts and exception handlers.
 -}
 
 {-# LANGUAGE MagicHash, UnboxedTuples #-}
@@ -27,16 +44,16 @@ import GHC.Exts (PromptTag#, newPromptTag#, prompt#, control0#)
 
 -- Note [Weird monad constraints]
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
--- This module uses the following convention to constraint a monad:
+-- This code uses the following constraint on the monadic operations:
 -- 
 --      example :: (PrimMonad m, m ~ IO) => ... -> m result
 -- 
--- instead of the more direct alternative:
+-- instead of directly naming IO like in:
 -- 
 --      example :: () => ... -> IO result
 -- 
--- This is because the functions are /morally pure/: they are equal
--- to some pure counterparts.
+-- This is because the functions are /morally pure/: they are equal to some
+-- pure counterparts.
 -- 
 -- The monad constraint is meant to highlight that spiritually,
 -- m /could/ have candidates other than IO if not for the technical
