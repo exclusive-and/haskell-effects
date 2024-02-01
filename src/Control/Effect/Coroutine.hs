@@ -1,8 +1,15 @@
 
-module Examples.Coroutine where
+{-# LANGUAGE ScopedTypeVariables #-}
 
-import Haskell.Effect
-import System.IO.Unsafe
+module Control.Effect.Coroutine where
+
+import Control.Monad.Interrupt
+import Control.Effect
+
+import GHC.IO
+
+import Data.Primitive.Array
+import Data.IORef
 
 
 -- * The Yield Effect
@@ -40,11 +47,11 @@ data Status r x
 -- | Run one step of a coroutine and return its exit status.
 run :: Coroutine x r -> IO (Status r x)
 run (Eff m) = do
-    tag <- newContinuation
+    tag <- newControlTag
     delimit tag (Done <$> m (yieldTarget tag))
 
 -- | The 'Yield' effect returns a 'Yielded' exit state.
-yieldTarget :: ContEv (Status r x) -> Target (Yield x) (Status r x)
+yieldTarget :: ControlTag (Status r x) -> Target (Yield x) (Status r x)
 yieldTarget tag = Target tag $ \(Yield x) k -> pure (Yielded x k)
 
     
@@ -53,16 +60,37 @@ yieldTarget tag = Target tag $ \(Yield x) k -> pure (Yielded x k)
 -- | Lazily collect all the values yielded by a coroutine into a list.
 collect :: Coroutine x () -> IO [x]
 collect (Eff m) = do
-    tag <- newContinuation
+    tag <- newControlTag
     handle tag (Done <$> m (yieldTarget tag))
     where
     handle tag action = unsafeInterleaveIO $ do
         r <- delimit tag action
         case r of
-            Done () -> pure []
+            Done ()     -> pure []
             Yielded x k -> do
                 xs <- handle tag (k (pure ()))
                 pure (x : xs)
+
+
+fastCollect :: Int -> Coroutine x () -> IO (Array x)
+fastCollect n (Eff m :: Coroutine x ()) = do
+    it  <- newIORef (0 :: Int)
+    res <- newArray n undefined
+    
+    tag <- newControlTag
+    
+    let fastTarget :: Yield x b -> CPS () IO b
+        fastTarget (Yield x) k = do
+            current <- readIORef it
+            if current == n
+                then print "Finished!" >> pure ()
+                else do
+                    writeIORef it (current + 1)
+                    writeArray res current x
+                    delimit tag (k $ pure ())
+    
+    delimit tag (m (Target tag fastTarget))
+    unsafeFreezeArray res
 
 
 data These a b = This a | That b | These a b
@@ -75,8 +103,8 @@ data These a b = This a | That b | These a b
 --    * The combined coroutine is 'Done' only when both constituents are.
 par :: Coroutine x a -> Coroutine y b -> Coroutine (These x y) (a, b)
 par (Eff ma) (Eff mb) = Eff $ \(Target tag0 cps) -> do
-    tag1 <- newContinuation
-    tag2 <- newContinuation
+    tag1 <- newControlTag
+    tag2 <- newControlTag
     handle tag0 cps tag1 tag2
         (Done <$> ma (yieldTarget tag1))
         (Done <$> mb (yieldTarget tag2))
@@ -105,9 +133,9 @@ par (Eff ma) (Eff mb) = Eff $ \(Target tag0 cps) -> do
 -- * A Toy Coroutine
 
 -- | A coroutine version of the Fibonacci algorithm.
-fibonacci :: Coroutine Integer ()
+fibonacci :: Coroutine Integer r
 fibonacci = fib 0 1
     where
-    fib a b = do
+    fib !a !b = do
         yield a
         fib b (a + b)
