@@ -1,6 +1,6 @@
 
 {- |
-   Module       :   Control.Monad.Effect
+   Module       :   Control.Effect
    Description  :   Monadic Algebraic Effects in Haskell
 
    Copyright    :   (c) 2023-2024, Simon Lovell Bart
@@ -38,7 +38,7 @@
 
 {-# LANGUAGE RankNTypes #-}
 
-module Control.Monad.Effect where
+module Control.Effect where
 
 import Control.Monad.Interrupt
 

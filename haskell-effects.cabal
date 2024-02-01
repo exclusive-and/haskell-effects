@@ -29,7 +29,7 @@ library
 
     exposed-modules:
         Control.Monad.Interrupt
-        Control.Monad.Effect
+        Control.Effect
         -- Examples.Coroutine
 
     ghc-options: -Wall -Wcompat
