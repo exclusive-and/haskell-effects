@@ -21,7 +21,7 @@
         to return.
 -}
 
-{-# LANGUAGE MagicHash, UnboxedTuples #-}
+{-# LANGUAGE MagicHash #-}
 
 module Control.Monad.Interrupt where
 

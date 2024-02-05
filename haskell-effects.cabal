@@ -12,13 +12,26 @@ library
 
     default-extensions:
         BangPatterns
+        DataKinds
+        EmptyCase
+        ExistentialQuantification
         GADTs
         GeneralizedNewtypeDeriving
+        ImportQualifiedPost
         LambdaCase
+        MultiParamTypeClasses
         NoStarIsType
+        PatternSynonyms
+        QuantifiedConstraints
+        RankNTypes
+        ScopedTypeVariables
+        StandaloneDeriving
         TupleSections
+        TypeApplications
         TypeFamilies
         TypeOperators
+        UnboxedTuples
+        UnliftedNewtypes
 
     other-extensions:
         MagicHash
