@@ -15,8 +15,9 @@
 -}
 
 module Control.Effect (
-    Effect, Eff, (:<), run, send,
-    Target, compute, control0
+    Effect, Eff, (:<), run,
+    Target, send,
+    compute, control, control0
     ) where
 
 import Control.Effect.Internal

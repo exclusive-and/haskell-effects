@@ -61,21 +61,27 @@ send e = Eff# (sendVM e)
 
 
 -- | The type of targets visible to user-level code.
-data Target eff effs r effs' a = Target {
-    runTarget :: I.ControlTag (Value r) -> Targets# -> Eff effs' a
+data Target eff effs i r effs' a = Target {
+    runTarget
+        :: I.ControlTag (Value i)
+        -> I.ControlTag (Value r)
+        -> (Capture i r -> IO (Value r))
+        -> Targets#
+        -> Eff effs' a
     }
 
 
 compute
-    ::  ( forall effs' b. eff :< effs'
-            => eff (Eff effs') b
-            -> Target eff effs r effs' b
+    :: (i -> Eff effs r)
+    ->  ( forall effs' a. eff :< effs'
+            => eff (Eff effs') a
+            -> Target eff effs i r effs' a
         )
-    -> Eff (eff : effs) r
+    -> Eff (eff : effs) i
     -> Eff effs r
 
 {-# INLINE compute #-}
-compute f e = Eff# $ computeVM f e
+compute onReturn f e = Eff# $ computeVM (coerce onReturn) f (unEff# e)
 
 
 -- | The type of targets visible to internal code.
@@ -156,17 +162,25 @@ instance Monad EVM
 
 
 computeVM
-    :: forall eff r effs.
-        ( forall effs' b. eff :< effs'
-            => eff (Eff effs') b
-            -> Target eff effs r effs' b
+    :: forall i r eff effs.
+       (i -> EVM r)
+    ->  ( forall effs' a. eff :< effs'
+            => eff (Eff effs') a
+            -> Target eff effs i r effs' a
         )
-    -> Eff (eff : effs) r
+    -> EVM i
     -> EVM r
     
-computeVM f (Eff# m0) = EVM# $ \(Targets -> ts0) -> do
-    tag <- I.newControlTag
-    let target evm = mkTarget# (\e -> runTarget (f e) tag evm)
+computeVM onReturn f m0 = EVM# $ \(Targets -> ts0) -> do
+    tag0 <- I.newControlTag
+    tag1 <- I.newControlTag
+    
+    let onCapture :: Capture i r -> IO (Value r)
+        onCapture capture = case capture of
+            Include g k -> unEVM# (g k) (unboxTargets ts0)
+            Exclude g k -> unEVM# (g k) (unboxTargets ts0)
+            
+    let target evm = mkTarget# (\e -> runTarget (f e) tag0 tag1 onCapture evm)
     
     let n = sizeofSmallArray ts0
     
@@ -197,7 +211,8 @@ computeVM f (Eff# m0) = EVM# $ \(Targets -> ts0) -> do
             writeSmallArray targets 0 (Any $ target (unboxTargets ts1))
             pure targets
     
-    I.delimit tag (unEVM# m0 (unboxTargets ts2))
+    I.delimit tag1 $ (\(Value ts a) -> unEVM# (onReturn a) ts) =<< do
+        I.delimit tag0 (unEVM# m0 (unboxTargets ts2))
 
 
 sendVM :: forall eff a effs. eff :< effs => eff (Eff effs) a -> EVM a
@@ -211,20 +226,42 @@ controlVM
     -> ((a -> EVM b) -> IO (Value b))
     -> IO (Value a)
 
+{-# INLINE controlVM #-}
 controlVM tag f0 = I.control0 tag f1
     where
     f1 k = f0 (\a -> EVM# $ \s -> k (pure $ Value s a))
 
+
+data Capture i r
+    where
+    Include :: ((a -> EVM r) -> EVM r) -> (a -> EVM r) -> Capture i r
+    Exclude :: ((a -> EVM i) -> EVM r) -> (a -> EVM i) -> Capture i r
+
 control'
-    :: forall r eff effs effs' a.
+    :: forall i r eff effs effs' a.
        ((a -> EVM r) -> EVM r)
-    -> Target eff effs r effs' a
-control' f = Target $ \tag s ->
-    Eff $ \_ -> controlVM tag (\k -> unEVM# (f k) s)
+    -> Target eff effs i r effs' a
+control' f = Target $ \_tag1 tag1 onCapture s ->
+    Eff $ \_ -> controlVM tag1 (\k -> onCapture $ Include f k)
+
+control
+    :: forall i eff effs r effs' a.
+       ((a -> Eff effs r) -> Eff effs r)
+    -> Target eff effs i r effs' a
+control f = control' (coerce f)
+
+
+control0'
+    :: forall i r eff effs effs' a.
+       ((a -> EVM i) -> EVM r)
+    -> Target eff effs i r effs' a
+control0' f = Target $ \tag0 tag1 onCapture s ->
+    Eff $ \_ ->
+        controlVM tag0 (\k -> controlVM tag1 $ \_ -> onCapture $ Exclude f k)
 
 control0
-    :: forall eff effs r effs' a.
-       ((a -> Eff (eff : effs) r) -> Eff (eff : effs) r)
-    -> Target eff effs r effs' a
-control0 f = control' @r (coerce f)
+    :: forall i eff effs r effs' a.
+       ((a -> Eff (eff : effs) i) -> Eff effs r)
+    -> Target eff effs i r effs' a
+control0 f = control0' (coerce f)
 
