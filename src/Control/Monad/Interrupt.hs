@@ -55,12 +55,14 @@ data ControlTag a = ControlTag (PromptTag# a)
 
 -- | 
 newControlTag :: (PrimMonad m, m ~ IO) => m (ControlTag a)
+{-# INLINE newControlTag #-}
 newControlTag = primitive $ \s0 -> case newPromptTag# s0 of
     (# s1, tag #) -> (# s1, ControlTag tag #)
 
 
 -- | 
 delimit :: (PrimMonad m, m ~ IO) => ControlTag a -> m a -> m a
+{-# INLINE delimit #-}
 delimit (ControlTag tag) m = primitive (prompt# tag $ internal m)
 
 
@@ -69,6 +71,7 @@ type CPS r m a = (m a -> m r) -> m r
 
 -- | 
 control0 :: (PrimMonad m, m ~ IO) => ControlTag r -> CPS r m a -> m a
+{-# INLINE control0 #-}
 control0 (ControlTag tag) run = primitive (control0# tag continue)
     where
     continue k = internal $ run (\a -> primitive (k $ internal a))
