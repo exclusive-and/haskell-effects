@@ -11,7 +11,7 @@
 module Control.Effect.Internal where
 
 import Control.Monad (ap)
-import Control.Monad.Interrupt qualified as I
+import Control.Monad.Interrupt qualified as Ctl
 import Control.Monad.Primitive
 import Data.Coerce
 import Data.Kind (Type)
@@ -63,8 +63,8 @@ send e = Eff# (sendVM e)
 -- | The type of targets visible to user-level code.
 data Target eff effs i r effs' a = Target {
     runTarget
-        :: I.ControlTag (Value i)
-        -> I.ControlTag (Value r)
+        :: Ctl.ControlTag (Value i)
+        -> Ctl.ControlTag (Value r)
         -> (Capture i r -> IO (Value r))
         -> Targets#
         -> Eff effs' a
@@ -172,8 +172,8 @@ computeVM
     -> EVM r
     
 computeVM onReturn f m0 = EVM# $ \(Targets -> ts0) -> do
-    tag0 <- I.newControlTag
-    tag1 <- I.newControlTag
+    tag0 <- Ctl.newControlTag
+    tag1 <- Ctl.newControlTag
     
     let onCapture :: Capture i r -> IO (Value r)
         onCapture capture = case capture of
@@ -211,8 +211,9 @@ computeVM onReturn f m0 = EVM# $ \(Targets -> ts0) -> do
             writeSmallArray targets 0 (Any $ target (unboxTargets ts1))
             pure targets
     
-    I.delimit tag1 $ (\(Value ts a) -> unEVM# (onReturn a) ts) =<< do
-        I.delimit tag0 (unEVM# m0 (unboxTargets ts2))
+    Ctl.delimit tag1 $ do
+        Value ts3 a <- Ctl.delimit tag0 (unEVM# m0 (unboxTargets ts2))
+        unEVM# (onReturn a) ts3
 
 
 sendVM :: forall eff a effs. eff :< effs => eff (Eff effs) a -> EVM a
@@ -222,12 +223,12 @@ sendVM e = EVM# $ \ts -> IO $ \s0 ->
 
 
 controlVM
-    :: I.ControlTag (Value b)
+    :: Ctl.ControlTag (Value b)
     -> ((a -> EVM b) -> IO (Value b))
     -> IO (Value a)
 
 {-# INLINE controlVM #-}
-controlVM tag f0 = I.control0 tag f1
+controlVM tag f0 = Ctl.control0 tag f1
     where
     f1 k = f0 (\a -> EVM# $ \s -> k (pure $ Value s a))
 
@@ -241,7 +242,7 @@ control'
     :: forall i r eff effs effs' a.
        ((a -> EVM r) -> EVM r)
     -> Target eff effs i r effs' a
-control' f = Target $ \_tag1 tag1 onCapture s ->
+control' f = Target $ \_tag0 tag1 onCapture s ->
     Eff $ \_ -> controlVM tag1 (\k -> onCapture $ Include f k)
 
 control
