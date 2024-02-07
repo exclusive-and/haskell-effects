@@ -26,7 +26,10 @@
 module Control.Monad.Interrupt where
 
 import Control.Monad.Primitive
-import GHC.Exts (PromptTag#, newPromptTag#, prompt#, control0#)
+import GHC.Exts (
+    catch#, raiseIO#,
+    PromptTag#, newPromptTag#, prompt#, control0#
+    )
 
 
 -- Note [Weird monad constraints]
@@ -48,6 +51,15 @@ import GHC.Exts (PromptTag#, newPromptTag#, prompt#, control0#)
 -- 
 -- Moral purity is the same idea that underlies ST.
 -- Maybe the GHC primitives can eventually be changed from IO to ST?
+
+
+catch :: (PrimMonad m, m ~ IO) => m a -> (e -> m a) -> m a
+{-# INLINE catch #-}
+catch m run = primitive (catch# (internal m) (\e -> internal (run e)))
+
+raise :: (PrimMonad m, m ~ IO) => e -> m a
+{-# INLINE raise #-}
+raise e = primitive (raiseIO# e)
 
 
 -- | 
