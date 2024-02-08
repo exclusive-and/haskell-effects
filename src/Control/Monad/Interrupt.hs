@@ -1,24 +1,22 @@
+{- |
+Module          :   Control.Monad.Interrupt
 
-{-| Module          :   Control.Monad.Interrupt
+Copyright       :   (c) 2023-2024, Simon Lovell Bart
+License         :   BSD3 (see the file LICENSE)
+Maintainer      :   Simon Lovell Bart <exclusiveandgate@gmail.com>
+Stability       :   experimental
+Portability     :   non-portable (GHC Extensions)
 
-    Copyright       :   (c) 2023-2024, Simon Lovell Bart
-    License         :   BSD3 (see the file LICENSE)
+Monadic operations for approaching control as a first-class concept.
+There are two parts to this idea:
 
-    Maintainer      :   Simon Lovell Bart <exclusiveandgate@gmail.com>
-    Stability       :   experimental
-    Portability     :   non-portable (GHC Extensions)
+[Running]
+    'catch' and 'delimit' run a given computation that contains first-class
+    control operations.
 
-    Monadic operations for approaching control within a computation as a
-    first-class concept. There are two parts to this idea:
-
-    [Running]
-        'delimit' runs a given computation with first-class control
-        structures.
-
-    [Interrupting]
-        'control0' stops the computation in-place, and it uses the
-        given function to come up with an appropriate result for 'delimit'
-        to return.
+[Interrupting]
+    'raise' and 'control0' override the main execution plan, forcing
+    control to return immediately to the delimiter running the computation.
 -}
 
 {-# LANGUAGE MagicHash #-}
