@@ -99,6 +99,7 @@ mkTarget#
     :: (forall effs a. eff :< effs => eff (Eff effs) a -> Eff effs a)
     -> Target# eff
 
+{-# INLINE mkTarget# #-}
 mkTarget# f = Target# $ \e evm0 s0 ->
     case internal (unEVM# (unEff# $ f e) evm0) s0 of
         (# s1, Value evm1 a #) -> (# s1, evm1, a #)
@@ -177,8 +178,11 @@ computeVM onReturn f m0 = EVM# $ \(Targets -> ts0) -> do
     
     let onCapture :: Capture i r -> IO (Value r)
         onCapture capture = case capture of
-            Include g k -> unEVM# (g k) (unboxTargets ts0)
-            Exclude g k -> unEVM# (g k) (unboxTargets ts0)
+            Include g k ts -> do
+                let k' x = EVM# $ \ts' -> Ctl.delimit tag1 (unEVM# (k x) ts')
+                unEVM# (g k') ts
+            
+            Exclude g k ts -> unEVM# (g k) ts
             
     let target evm = mkTarget# (\e -> runTarget (f e) tag0 tag1 onCapture evm)
     
@@ -222,47 +226,56 @@ sendVM e = EVM# $ \ts -> IO $ \s0 ->
         (# s1, evm1, a #) -> (# s1, Value evm1 a #)
 
 
-controlVM
+controlVM#
     :: Ctl.ControlTag (Value b)
     -> ((a -> EVM b) -> IO (Value b))
     -> IO (Value a)
 
-{-# INLINE controlVM #-}
-controlVM tag f0 = Ctl.control0 tag f1
+{-# INLINE controlVM# #-}
+controlVM# tag f0 = Ctl.control0 tag f1
     where
     f1 k = f0 (\a -> EVM# $ \s -> k (pure $ Value s a))
 
 
 data Capture i r
     where
-    Include :: ((a -> EVM r) -> EVM r) -> (a -> EVM r) -> Capture i r
-    Exclude :: ((a -> EVM i) -> EVM r) -> (a -> EVM i) -> Capture i r
+    Include :: ((a -> EVM r) -> EVM r)
+            -> (a -> EVM r)
+            -> Targets#
+            -> Capture i r
 
-control'
+    Exclude :: ((a -> EVM i) -> EVM r)
+            -> (a -> EVM i)
+            -> Targets#
+            -> Capture i r
+
+controlVM
     :: forall i r eff effs effs' a.
        ((a -> EVM r) -> EVM r)
     -> Target eff effs i r effs' a
-control' f = Target $ \_tag0 tag1 onCapture s ->
-    Eff $ \_ -> controlVM tag1 (\k -> onCapture $ Include f k)
+controlVM f =
+    Target $ \_tag0 tag1 onCapture s ->
+        Eff $ \_ -> controlVM# tag1 (\k -> onCapture $! Include f k s)
 
 control
     :: forall i eff effs r effs' a.
        ((a -> Eff effs r) -> Eff effs r)
     -> Target eff effs i r effs' a
-control f = control' (coerce f)
+control f = controlVM (coerce f)
 
 
-control0'
+control0VM
     :: forall i r eff effs effs' a.
        ((a -> EVM i) -> EVM r)
     -> Target eff effs i r effs' a
-control0' f = Target $ \tag0 tag1 onCapture s ->
-    Eff $ \_ ->
-        controlVM tag0 (\k -> controlVM tag1 $ \_ -> onCapture $ Exclude f k)
+control0VM f =
+    Target $ \tag0 tag1 onCapture s ->
+        Eff $ \_ -> controlVM# tag0 $ \k ->
+            controlVM# tag1 $ \_ -> onCapture $! Exclude f k s
 
 control0
     :: forall i eff effs r effs' a.
        ((a -> Eff (eff : effs) i) -> Eff effs r)
     -> Target eff effs i r effs' a
-control0 f = control0' (coerce f)
+control0 f = control0VM (coerce f)
 
