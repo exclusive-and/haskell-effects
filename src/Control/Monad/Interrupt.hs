@@ -66,7 +66,7 @@ raise e = primitive (raiseIO# e)
 data ControlTag a = ControlTag (PromptTag# a)
 
 -- | 
-newControlTag :: (PrimMonad m, m ~ IO) => m (ControlTag a)
+newControlTag :: forall a m. (PrimMonad m, m ~ IO) => m (ControlTag a)
 {-# INLINE newControlTag #-}
 newControlTag = primitive $ \s0 -> case newPromptTag# s0 of
     (# s1, tag #) -> (# s1, ControlTag tag #)
