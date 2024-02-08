@@ -315,6 +315,7 @@ instance Monad EVM
 
 
 -- Note [Installing Targets]
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~
 -- A new target vector gets created and copied from the old one each time
 -- a target gets installed.
 -- 
