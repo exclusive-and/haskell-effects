@@ -7,7 +7,7 @@ Maintainer      :   Simon Lovell Bart <exclusiveandgate@gmail.com>
 Stability       :   experimental
 Portability     :   non-portable (GHC Extensions)
 
-Monadic operations for approaching control as a first-class concept.
+Monadic operations where control is first-class data.
 There are two parts to this idea:
 
 [Running]
