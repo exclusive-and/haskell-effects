@@ -366,7 +366,7 @@ computeVM onReturn f m0 = EVM# $ \(Targets -> ts0) -> do
                 let k' x = EVM# $ \ts' -> Ctl.delimit tag1 (unEVM# (k x) ts')
                 unEVM# (g k') ts
             
-            Exclude g k ts -> unEVM# (g k) ts
+            Exclude g k _ -> unEVM# (g k) (unboxTargets ts0)
             
     -- See Note [External vs Internal Targets]
     let target evm = mkTarget# (\e -> mkTarget (f e) tag0 tag1 onCapture evm)
@@ -386,31 +386,33 @@ computeVM onReturn f m0 = EVM# $ \(Targets -> ts0) -> do
     
     -- See Note [Two-tiered Delimiters]
     Ctl.delimit tag1 $ do
-        Value ts3 a <- Ctl.delimit tag0 (unEVM# m0 (unboxTargets ts2))
-        unEVM# (onReturn a) ts3
+        Value _ts3 a <- Ctl.delimit tag0 (unEVM# m0 (unboxTargets ts2))
+        unEVM# (onReturn a) (unboxTargets ts0)
 
 
 control
     :: forall i r eff effs effs' a.
        ((a -> Eff effs r) -> Eff effs r)
     -> Target eff effs i r effs' a
+
 control f =
-    Target $ \_tag0 tag1 onCapture s ->
+    Target $ \_tag0 tag1 onCapture ts ->
         Eff $ \_ ->
             -- See Note [Two-tiered Delimiters]
-            controlVM tag1 $ \k -> onCapture $! Include (coerce f) k s
+            controlVM tag1 $ \k -> onCapture $! Include (coerce f) k ts
 
 
 control0
     :: forall i r eff effs effs' a.
        ((a -> Eff (eff : effs) i) -> Eff effs r)
     -> Target eff effs i r effs' a
+
 control0 f =
-    Target $ \tag0 tag1 onCapture s ->
+    Target $ \tag0 tag1 onCapture ts ->
         Eff $ \_ ->
             -- See Note [Two-tiered Delimiters]
             controlVM tag0 $ \k ->
-                controlVM tag1 $ \_ -> onCapture $! Exclude (coerce f) k s
+                controlVM tag1 $ \_ -> onCapture $! Exclude (coerce f) k ts
 
 
 locally :: Eff effs' a -> Target eff effs i r effs' a
