@@ -41,10 +41,10 @@ library
     hs-source-dirs: src
 
     exposed-modules:
-        Control.Monad.Interrupt
         Control.Effect
         Control.Effect.Internal
-        -- Examples.Coroutine
+        Control.Effect.Lift
+        Control.Monad.Interrupt
 
     ghc-options: -Wall -Wcompat
 
