@@ -12,8 +12,12 @@
 module Control.Effect.Lift where
 
 import Control.Effect.Internal
+import Control.Monad.Interrupt qualified as Ctl
+import Control.Monad.Primitive
+import Data.Foldable
 import Data.Primitive.SmallArray
 import GHC.Exts (Any)
+import Unsafe.Coerce (unsafeCoerce)
 
 
 class (effs0 :: [Effect]) :<< (effs :: [Effect])
@@ -45,6 +49,7 @@ instance {-# INCOHERENT #-} effs0 :<< effs1 => Lift effs0 effs1
         where
         idx = targetSubIndex @effs0 @effs1
         ts1 = cloneSmallArray ts0 idx (sizeofSmallArray ts0 - idx)
+    {-# INLINE liftTargets #-}
 
 instance Lift '[] effs
     where
@@ -53,22 +58,62 @@ instance Lift '[] effs
 
 instance (eff :< effs1, Lift effs0 effs1) => Lift (eff : effs0) effs1
     where
-    liftTargets (Targets -> ts) = unboxTargets $ runSmallArray $ do
-        let n = sizeofSmallArray ts
-    
+    liftTargets ts = unboxTargets $ runSmallArray $ do
         let null# :: Any
             null# = Any ()
         
-        targets <- newSmallArray (n + 1) null#
-        copySmallArray targets 1 ts 0 n
+        let ts1 = Targets (liftTargets @effs0 @effs1 ts)
+        let n = sizeofSmallArray ts1
         
-        let target = lookupTarget @effs1 @eff (unboxTargets ts)
-        writeSmallArray targets 0 (Any target)
+        ts2 <- newSmallArray (n + 1) null#
+        copySmallArray ts2 1 ts1 0 n
         
-        pure targets
+        let target = indexSmallArray (Targets ts) (targetIndex @eff @effs1)
+        writeSmallArray ts2 0 target
+        
+        pure ts2
 
 
 retargetVM :: (Targets# -> Targets#) -> EVM a -> EVM a
-retargetVM retarget m = EVM# $ \ts -> do
-    Value _ a <- unEVM# m (retarget ts)
-    pure $ Value ts a
+retargetVM retarget m = EVM# $ \ts0 -> do
+    let ts1 = retarget ts0
+        n = sizeofSmallArray (Targets ts1)
+    
+    tag2 <- Ctl.newControlTag
+    
+    let mkSpoofTarget
+            :: forall eff effs' b. (eff :< effs')
+            => Target# eff
+            -> eff (Eff effs') b
+            -> Targets#
+            -> IO (Value b)
+        
+        mkSpoofTarget original e evm = controlVM tag2 $ \k -> do
+            -- Hit the original target.
+            -- Retargetting discards any changes made to the target vector.
+            a <- primitive $ \s0 ->
+                case runTarget# original e ts0 s0 of
+                    (# s1, _, a #) -> (# s1, a #)
+            
+            Ctl.delimit tag2 $ unEVM# (k a) evm
+        
+        spoofTarget original = Target# $ \e evm s0 ->
+            case internal (mkSpoofTarget original e evm) s0 of
+                (# s1, Value evm1 a #) -> (# s1, evm1, a #)
+    
+    let null# :: Any
+        null# = Any ()
+    
+        ts3 = runSmallArray $ do
+            ts2 <- newSmallArray n null#
+    
+            forM_ [0..n - 1] $ \ix -> do
+                let original = indexSmallArray (Targets ts1) ix
+                let new = spoofTarget (unsafeCoerce original)
+                writeSmallArray ts2 ix (Any new)
+            
+            pure ts2
+    
+    Ctl.delimit tag2 $ do
+        Value _ a <- unEVM# m (unboxTargets ts3)
+        pure (Value ts0 a)
