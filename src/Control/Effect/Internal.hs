@@ -286,6 +286,7 @@ data Capture i r    -- See Note [Two-tiered Delimiters]
     Include :: ((a -> EVM r) -> EVM r)
             -> (a -> EVM r)
             -> Targets#
+            -> Targets#
             -> Capture i r
 
     Exclude :: ((a -> EVM i) -> EVM r)
@@ -359,12 +360,14 @@ computeVM onReturn f m0 = EVM# $ \(Targets -> ts0) -> do
     
     let onCapture :: Capture i r -> IO (Value r)
         onCapture capture = case capture of
-            Include g k ts -> do
+            Include g k ts ts' -> do
+                let k' a = EVM# $ \_ -> do
+                        Value _ b <- unEVM# (k a) ts'
+                        pure (Value ts b)
                 -- Only need to reinstall the outer delimiter as the inner
                 -- one is captured in the continuation,
                 -- as described in Note [Two-tiered Delimiters].
-                let k' x = EVM# $ \ts' -> Ctl.delimit tag1 (unEVM# (k x) ts')
-                unEVM# (g k') ts
+                Ctl.delimit tag1 $ unEVM# (g k') ts
             
             Exclude g k _ -> unEVM# (g k) (unboxTargets ts0)
             
@@ -397,9 +400,9 @@ control
 
 control f =
     Target $ \_tag0 tag1 onCapture ts ->
-        Eff $ \_ ->
+        Eff $ \ts' ->
             -- See Note [Two-tiered Delimiters]
-            controlVM tag1 $ \k -> onCapture $! Include (coerce f) k ts
+            controlVM tag1 $ \k -> onCapture $! Include (coerce f) k ts ts'
 
 
 control0
